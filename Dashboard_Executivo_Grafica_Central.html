@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard Executivo | Gráfica Central</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0c2e2a;
+    --bg-2:#0f3d38;
+    --panel:#123e3a;
+    --panel-2:#16493f;
+    --line:rgba(255,255,255,0.10);
+    --teal:#5fc9b8;
+    --teal-soft:#8fd9cb;
+    --mint:#bfe9de;
+    --white:#f5fbf9;
+    --muted:#aecfc7;
+    --red:#e2776b;
+    --gold:#d9b864;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+    background: radial-gradient(circle at 10% 0%, #114540 0%, #0a2622 55%, #081e1b 100%);
+    color:var(--white);
+    min-height:100vh;
+    padding:28px 32px 60px;
+  }
+  .wrap{max-width:1320px;margin:0 auto;}
+
+  /* HEADER */
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:18px;
+    padding-bottom:22px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:26px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand .logo{
+    width:46px;height:46px;border-radius:50%;
+    border:1.5px solid var(--teal-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;font-weight:700;font-size:20px;color:var(--teal-soft);
+    background:rgba(255,255,255,0.03);
+  }
+  .brand h1{font-size:21px;margin:0;font-weight:700;letter-spacing:.2px;}
+  .brand p{margin:2px 0 0;font-size:12.5px;color:var(--muted);}
+  .tag{
+    font-size:11px;letter-spacing:.5px;color:var(--muted);
+    border:1px solid var(--line);padding:4px 10px;border-radius:20px;
+    text-transform:uppercase;
+  }
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  select, .toggle button{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--white);
+    padding:9px 14px;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.15s;
+  }
+  select:hover{border-color:var(--teal-soft);}
+  .toggle{display:flex;background:var(--panel-2);border-radius:9px;border:1px solid var(--line);overflow:hidden;}
+  .toggle button{border:none;border-radius:0;background:transparent;color:var(--muted);}
+  .toggle button.active{background:var(--teal);color:#0a2622;}
+
+  /* KPI GRID */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:16px;
+    margin-bottom:26px;
+  }
+  @media (max-width:1100px){ .kpis{grid-template-columns:repeat(2,1fr);} }
+  .kpi{
+    background:linear-gradient(160deg,var(--panel) 0%, var(--bg-2) 100%);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi::before{
+    content:"";position:absolute;top:0;left:0;width:4px;height:100%;
+    background:var(--accent,var(--teal));
+  }
+  .kpi .label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+  .kpi .value{font-size:27px;font-weight:700;line-height:1.1;}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;}
+  .kpi.neg .value{color:var(--red);}
+  .kpi.neg{--accent:var(--red);}
+  .kpi.pos{--accent:var(--teal);}
+  .kpi.warn{--accent:var(--gold);}
+
+  /* PANELS */
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-bottom:18px;}
+  .grid2b{display:grid;grid-template-columns:1fr 1.1fr;gap:18px;margin-bottom:18px;}
+  @media (max-width:1000px){ .grid2,.grid2b{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 22px;
+  }
+  .panel h2{font-size:15.5px;margin:0 0 2px;font-weight:700;}
+  .panel .desc{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .chart-box{position:relative;height:260px;}
+  .chart-box.tall{height:300px;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.8px;margin-top:6px;}
+  th{
+    text-align:left;color:var(--muted);font-weight:600;
+    border-bottom:1px solid var(--line);padding:8px 6px;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.3px;
+  }
+  td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,0.05);}
+  tr.total td{font-weight:700;border-top:1px solid var(--line);color:var(--white);}
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  td.neg{color:var(--red);}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;}
+
+  /* DRE */
+  .dre-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+  .dre-row.subtotal{font-weight:700;background:rgba(255,255,255,0.04);margin:4px -10px;padding:8px 10px;border-radius:7px;border-bottom:none;}
+  .dre-row.final{font-weight:700;background:linear-gradient(90deg,var(--panel-2),transparent);margin:4px -10px;padding:9px 10px;border-radius:7px;border-bottom:none;}
+  .dre-row .pct{color:var(--muted);width:60px;text-align:right;}
+  .dre-row.neg span:first-child + span{color:var(--red);}
+  .dre-row .v.neg{color:var(--red);}
+  .dre-row .v.pos{color:var(--teal-soft);}
+
+  /* INSIGHTS */
+  .insights{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px;}
+  @media (max-width:1000px){.insights{grid-template-columns:1fr;}}
+  .insight{
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--teal);
+    border-radius:var(--radius);padding:16px 18px;
+  }
+  .insight.alert{border-left-color:var(--red);}
+  .insight h3{font-size:13.5px;margin:0 0 8px;}
+  .insight p{font-size:12.3px;color:var(--muted);line-height:1.55;margin:0;}
+  .insight .big{font-size:20px;font-weight:700;color:var(--white);display:block;margin-bottom:4px;}
+
+  /* PLANO DE AÇÃO */
+  .plano{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px;}
+  @media (max-width:1000px){.plano{grid-template-columns:1fr;}}
+  .plano .card{
+    background:linear-gradient(160deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);border-radius:var(--radius);padding:20px;
+  }
+  .plano .num{
+    font-size:30px;font-weight:800;color:var(--teal-soft);font-family:Georgia,serif;margin-bottom:8px;
+  }
+  .plano h3{margin:0 0 8px;font-size:14.5px;}
+  .plano p{font-size:12.3px;color:var(--muted);line-height:1.55;margin:0 0 10px;}
+  .plano .meta{
+    font-size:11.5px;background:rgba(255,255,255,0.06);display:inline-block;
+    padding:4px 10px;border-radius:20px;color:var(--mint);font-weight:600;
+  }
+
+  footer{text-align:center;color:var(--muted);font-size:11.5px;margin-top:10px;padding-top:18px;border-top:1px solid var(--line);}
+
+  .twocol-panel{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+  @media (max-width:700px){.twocol-panel{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">LB</div>
+      <div>
+        <h1>LBuild Finanças — Dashboard Executivo</h1>
+        <p>Gráfica Central · Gráficos e Impressão · Pouso Redondo - SC</p>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="tag">Confidencial</span>
+      <div class="toggle" id="viewToggle">
+        <button data-mode="mensal" class="active">Mensal</button>
+        <button data-mode="acumulado">Acumulado</button>
+      </div>
+      <select id="monthSelect"></select>
+    </div>
+  </header>
+
+  <!-- KPI ROW -->
+  <div class="kpis" id="kpiRow"></div>
+
+  <!-- FLUXO DE CAIXA + DRE -->
+  <div class="grid2">
+    <div class="panel">
+      <h2>Fluxo de Caixa</h2>
+      <div class="desc">Entradas, saídas e resultado do período selecionado.</div>
+      <div class="chart-box"><canvas id="chartFluxo"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>DRE — Demonstração do Resultado</h2>
+      <div class="desc">Cascata de margens, em % do faturamento.</div>
+      <div id="dreBody"></div>
+    </div>
+  </div>
+
+  <!-- DESPESAS + RECEITAS -->
+  <div class="grid2b">
+    <div class="panel">
+      <h2>Receitas por Cliente</h2>
+      <div class="desc">Distribuição do faturamento entre os principais clientes.</div>
+      <div class="twocol-panel">
+        <div class="chart-box"><canvas id="chartClientes"></canvas></div>
+        <table id="tblClientes"></table>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Despesas por Categoria</h2>
+      <div class="desc">Distribuição das saídas financeiras do período.</div>
+      <div class="chart-box tall"><canvas id="chartDespesas"></canvas></div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div class="insights" id="insightsRow"></div>
+
+  <!-- PLANO DE AÇÃO -->
+  <div class="panel" style="margin-bottom:18px;">
+    <h2>Plano de Ação — Próximos Passos</h2>
+    <div class="desc">Ações estratégicas para maximizar o resultado.</div>
+    <div class="plano" id="planoRow"></div>
+  </div>
+
+  <footer>LBuild Finanças · Relatório de Fechamento Financeiro · Dados consolidados a partir do fechamento mensal · Uso restrito ao cliente</footer>
+</div>
+
+<script>
+/* ======================= DADOS POR MÊS =======================
+   Estrutura escalável: cada chave é um mês "AAAA-MM".
+   Hoje há apenas Maio/2026 — basta adicionar novos meses aqui
+   (mesmo formato) para o seletor e o "Acumulado" funcionarem
+   automaticamente, sem alterar nenhuma outra parte do código.
+================================================================ */
+const DATA = {
+  "2026-05": {
+    label: "Maio 2026",
+    faturamento: 54489.59,
+    cmv: 14775.18,
+    resultadoBruto: 39714.41,
+    pessoal: 13343.79,
+    servicosTerceirizados: 2356.50,
+    administrativo: 4245.25,
+    impostos: 2535.84,
+    outrosCustos: 221.70,
+    reembolsos: 4139.62,
+    resultadoAntesFinanceiro: 21150.95,
+    emprestimos: 14839.74,
+    financiamentos: 11474.61,
+    resultadoAntesRetiradas: -5163.40,
+    retiradaSocios: 3061.19,
+    resultadoExercicio: -8224.59,
+    caixaFinal: -92.99,
+    fluxo: { entradas: 54489.59, saidas: 63315.00 },
+    despesasCategorias: [
+      { nome: "Despesas Financeiras", valor: 26314.35, pct: 39.4 },
+      { nome: "Compra Fornecedor/CMV", valor: 14775.18, pct: 22.1 },
+      { nome: "Pessoal", valor: 13343.79, pct: 20.0 },
+      { nome: "Administrativo", valor: 4245.25, pct: 6.4 },
+      { nome: "Retirada de Sócios", valor: 3061.19, pct: 4.6 },
+      { nome: "Impostos e Taxas", valor: 2535.84, pct: 3.8 },
+      { nome: "Serviços Terceirizados", valor: 2356.50, pct: 3.5 },
+      { nome: "Outros Operacionais", valor: 221.70, pct: 0.3 }
+    ],
+    receitasClientes: [
+      { nome: "Antecip./Cobr. Bancária", valor: 18862.95, pct: 34.6 },
+      { nome: "Outros (50+ clientes)", valor: 23815.60, pct: 43.7 },
+      { nome: "Coop. de Crédito", valor: 3600.00, pct: 6.6 },
+      { nome: "Pref. Pouso Redondo", valor: 3031.04, pct: 5.6 },
+      { nome: "Royal Autocompany", valor: 3000.00, pct: 5.5 },
+      { nome: "Inova + F.C. Gráficos", valor: 2180.00, pct: 4.0 }
+    ]
+  }
+};
+
+const fmt = (v) => "R$ " + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtK = (v) => {
+  const sign = v < 0 ? "-" : "";
+  return sign + "R$ " + (Math.abs(v)/1000).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + "K";
+};
+const pctFmt = (v) => v.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+
+const months = Object.keys(DATA).sort();
+const monthSelect = document.getElementById('monthSelect');
+months.forEach(m => {
+  const opt = document.createElement('option');
+  opt.value = m; opt.textContent = DATA[m].label;
+  monthSelect.appendChild(opt);
+});
+monthSelect.value = months[months.length-1];
+
+let mode = 'mensal';
+document.querySelectorAll('#viewToggle button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#viewToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    monthSelect.disabled = (mode === 'acumulado');
+    render();
+  });
+});
+monthSelect.addEventListener('change', render);
+
+function getAccumulated(){
+  // soma todos os meses disponíveis (estrutura pronta para múltiplos meses)
+  const keys = months;
+  const base = JSON.parse(JSON.stringify(DATA[keys[0]]));
+  base.label = keys.length>1 ? `Acumulado (${DATA[keys[0]].label} – ${DATA[keys[keys.length-1]].label})` : `Acumulado (${DATA[keys[0]].label})`;
+  const numericFields = ["faturamento","cmv","resultadoBruto","pessoal","servicosTerceirizados","administrativo","impostos","outrosCustos","reembolsos","resultadoAntesFinanceiro","emprestimos","financiamentos","resultadoAntesRetiradas","retiradaSocios","resultadoExercicio","caixaFinal"];
+  for(let i=1;i<keys.length;i++){
+    const d = DATA[keys[i]];
+    numericFields.forEach(f=> base[f]+=d[f]);
+    base.fluxo.entradas += d.fluxo.entradas;
+    base.fluxo.saidas += d.fluxo.saidas;
+    d.despesasCategorias.forEach(c=>{
+      const match = base.despesasCategorias.find(x=>x.nome===c.nome);
+      if(match) match.valor += c.valor; else base.despesasCategorias.push({...c});
+    });
+    d.receitasClientes.forEach(c=>{
+      const match = base.receitasClientes.find(x=>x.nome===c.nome);
+      if(match) match.valor += c.valor; else base.receitasClientes.push({...c});
+    });
+  }
+  // recalcula percentuais
+  const totalDesp = base.despesasCategorias.reduce((s,c)=>s+c.valor,0);
+  base.despesasCategorias.forEach(c=> c.pct = totalDesp ? (c.valor/totalDesp*100) : 0);
+  base.receitasClientes.forEach(c=> c.pct = base.faturamento ? (c.valor/base.faturamento*100) : 0);
+  return base;
+}
+
+let charts = {};
+function destroyCharts(){ Object.values(charts).forEach(c=>c && c.destroy()); charts = {}; }
+
+const palette = ['#5fc9b8','#bfe9de','#d9b864','#8fd9cb','#3f8f82','#e2776b','#2d6b61','#a9d8cb'];
+
+function render(){
+  const d = mode === 'acumulado' ? getAccumulated() : DATA[monthSelect.value];
+  renderKPIs(d);
+  renderFluxo(d);
+  renderDRE(d);
+  renderClientes(d);
+  renderDespesas(d);
+  renderInsights(d);
+  renderPlano(d);
+}
+
+function renderKPIs(d){
+  const margemBruta = d.resultadoBruto/d.faturamento*100;
+  const margemOp = d.resultadoAntesFinanceiro/d.faturamento*100;
+  const margemFinal = d.resultadoExercicio/d.faturamento*100;
+  const cards = [
+    {label:"Faturamento", value:fmt(d.faturamento), sub:d.label, cls:"pos"},
+    {label:"Margem Bruta", value:pctFmt(margemBruta), sub:`Resultado bruto ${fmt(d.resultadoBruto)}`, cls:"pos"},
+    {label:"Res. Operacional", value:fmt(d.resultadoAntesFinanceiro), sub:`${pctFmt(margemOp)} antes do financeiro`, cls:"pos"},
+    {label:"Resultado Final", value:fmt(d.resultadoExercicio), sub:`${pctFmt(margemFinal)} sobre faturamento`, cls: d.resultadoExercicio<0?"neg":"pos"},
+    {label:"Caixa do Período", value:fmt(d.caixaFinal), sub: d.caixaFinal<0? "Liquidez crítica" : "Posição de caixa", cls: d.caixaFinal<0?"neg":"warn"}
+  ];
+  document.getElementById('kpiRow').innerHTML = cards.map(c=>`
+    <div class="kpi ${c.cls}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function renderFluxo(d){
+  const ctx = document.getElementById('chartFluxo');
+  const resultado = d.fluxo.entradas - d.fluxo.saidas;
+  charts.fluxo = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Entradas','Saídas','Resultado'],
+      datasets:[{
+        data:[d.fluxo.entradas, d.fluxo.saidas, resultado],
+        backgroundColor:[palette[0], palette[5], resultado<0?palette[5]:palette[0]],
+        borderRadius:8,
+        maxBarThickness:70
+      }]
+    },
+    options:{
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>fmt(c.parsed.y)}}},
+      scales:{
+        y:{ ticks:{color:'#aecfc7', callback:(v)=>fmtK(v)}, grid:{color:'rgba(255,255,255,0.06)'} },
+        x:{ ticks:{color:'#f5fbf9'}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderDRE(d){
+  const margemBruta = d.resultadoBruto/d.faturamento*100;
+  const margemOp = d.resultadoAntesFinanceiro/d.faturamento*100;
+  const margemAntesRet = d.resultadoAntesRetiradas/d.faturamento*100;
+  const margemFinal = d.resultadoExercicio/d.faturamento*100;
+  const rows = [
+    {t:"Receita Bruta de Vendas/Serviços", v:d.faturamento, p:100, sub:false},
+    {t:"(-) CMV", v:-d.cmv, p:-d.cmv/d.faturamento*100, sub:false, neg:true},
+    {t:"Resultado Bruto", v:d.resultadoBruto, p:margemBruta, subtotal:true},
+    {t:"(-) Pessoal", v:-d.pessoal, p:-d.pessoal/d.faturamento*100, neg:true},
+    {t:"(-) Serviços Terceirizados", v:-d.servicosTerceirizados, p:-d.servicosTerceirizados/d.faturamento*100, neg:true},
+    {t:"(-) Administrativas", v:-d.administrativo, p:-d.administrativo/d.faturamento*100, neg:true},
+    {t:"(-) Impostos e Taxas", v:-d.impostos, p:-d.impostos/d.faturamento*100, neg:true},
+    {t:"(-) Outros Custos", v:-d.outrosCustos, p:-d.outrosCustos/d.faturamento*100, neg:true},
+    {t:"(+) Reembolsos/Rendimentos", v:d.reembolsos, p:d.reembolsos/d.faturamento*100},
+    {t:"Resultado Antes do Financeiro", v:d.resultadoAntesFinanceiro, p:margemOp, subtotal:true},
+    {t:"(-) Empréstimos", v:-d.emprestimos, p:-d.emprestimos/d.faturamento*100, neg:true},
+    {t:"(-) Financiamentos", v:-d.financiamentos, p:-d.financiamentos/d.faturamento*100, neg:true},
+    {t:"Resultado Antes Retiradas", v:d.resultadoAntesRetiradas, p:margemAntesRet, subtotal:true},
+    {t:"(-) Retirada de Sócios", v:-d.retiradaSocios, p:-d.retiradaSocios/d.faturamento*100, neg:true},
+    {t:"Resultado do Exercício", v:d.resultadoExercicio, p:margemFinal, final:true}
+  ];
+  document.getElementById('dreBody').innerHTML = rows.map(r=>{
+    const cls = r.final ? "final" : (r.subtotal ? "subtotal" : "");
+    const vClass = r.v<0 ? "v neg" : "v pos";
+    return `<div class="dre-row ${cls}">
+      <span>${r.t}</span>
+      <span style="display:flex;gap:14px;">
+        <span class="${vClass}">${r.v<0?'(' + fmt(Math.abs(r.v)) + ')':fmt(r.v)}</span>
+        <span class="pct">${r.p.toFixed(1)}%</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function renderClientes(d){
+  const sorted = [...d.receitasClientes].sort((a,b)=>b.valor-a.valor);
+  const ctx = document.getElementById('chartClientes');
+  charts.clientes = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:sorted.map(c=>c.nome),
+      datasets:[{ data:sorted.map(c=>c.valor), backgroundColor:palette, borderColor:'#0c2e2a', borderWidth:2 }]
+    },
+    options:{
+      cutout:'62%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>`${c.label}: ${fmt(c.parsed)}`}} }
+    }
+  });
+  document.getElementById('tblClientes').innerHTML = `
+    <thead><tr><th>Cliente</th><th class="num">%</th></tr></thead>
+    <tbody>
+      ${sorted.map((c,i)=>`<tr><td><span class="dot" style="background:${palette[i%palette.length]}"></span>${c.nome}</td><td class="num">${c.pct.toFixed(1)}%</td></tr>`).join('')}
+      <tr class="total"><td>Total</td><td class="num">100,0%</td></tr>
+    </tbody>`;
+}
+
+function renderDespesas(d){
+  const sorted = [...d.despesasCategorias].sort((a,b)=>b.valor-a.valor);
+  const ctx = document.getElementById('chartDespesas');
+  charts.despesas = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:sorted.map(c=>c.nome),
+      datasets:[{ data:sorted.map(c=>c.valor), backgroundColor:sorted.map((c,i)=> c.nome.includes('Financeiras') ? palette[5] : palette[i%palette.length]), borderRadius:6 }]
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>fmt(c.parsed.x)}} },
+      scales:{
+        x:{ ticks:{color:'#aecfc7', callback:(v)=>fmtK(v)}, grid:{color:'rgba(255,255,255,0.06)'} },
+        y:{ ticks:{color:'#f5fbf9', font:{size:11}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderInsights(d){
+  const pesoFinanceiro = (d.emprestimos + d.financiamentos)/d.faturamento*100;
+  const margemBruta = d.resultadoBruto/d.faturamento*100;
+  const insights = [
+    {
+      cls:"alert",
+      title:"Despesas Financeiras — Principal Destrutora de Resultado",
+      big: fmt(d.emprestimos + d.financiamentos),
+      text: `Empréstimos (${fmt(d.emprestimos)}) + financiamentos (${fmt(d.financiamentos)}) consomem ${pesoFinanceiro.toFixed(1)}% do faturamento. A operação gera ${fmt(d.resultadoAntesFinanceiro)} antes do financeiro, mas a dívida zera o resultado e gera déficit de ${fmt(Math.abs(d.resultadoExercicio))}.`
+    },
+    {
+      cls:"",
+      title:"Margem Bruta Sólida — Operação Eficiente",
+      big: pctFmt(margemBruta),
+      text: `CMV de ${fmt(d.cmv)} representa apenas ${(d.cmv/d.faturamento*100).toFixed(1)}% do faturamento. A produção é eficiente — o problema está na estrutura de dívida, não na operação.`
+    },
+    {
+      cls: d.caixaFinal<0 ? "alert" : "",
+      title:"Caixa — Liquidez do Período",
+      big: fmt(d.caixaFinal),
+      text: d.caixaFinal<0
+        ? `Caixa praticamente zerado. Sem margem para imprevistos (inadimplência, manutenção, sazonalidade). Renegociar a dívida é a prioridade para liberar caixa operacional.`
+        : `Posição de caixa positiva no período — manter reserva mínima de segurança equivalente a 1 mês de despesas fixas.`
+    }
+  ];
+  document.getElementById('insightsRow').innerHTML = insights.map(i=>`
+    <div class="insight ${i.cls}">
+      <h3>${i.title}</h3>
+      <span class="big">${i.big}</span>
+      <p>${i.text}</p>
+    </div>`).join('');
+}
+
+function renderPlano(d){
+  const planos = [
+    {n:"1", t:"Renegociar Dívida", p:`R$ ${(d.emprestimos+d.financiamentos).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})}/mês em empréstimos + financiamentos. Buscar consolidação em linha de menor taxa ou extensão de prazo.`, meta:"Meta: parcela < R$ 15K/mês"},
+    {n:"2", t:"Ampliar Receita", p:`Estrutura de custo fixo já coberta — cada R$ 10K adicional de faturamento gera ~R$ 7,3K de margem bruta extra. Focar prefeituras, associações e empresas locais.`, meta:"Meta: R$ 70K no próximo mês"},
+    {n:"3", t:"Reserva de Emergência", p:`Caixa no limite é risco crítico. Estabelecer reserva mínima para cobrir imprevistos antes de novas retiradas dos sócios.`, meta:"Meta: reserva de R$ 5K"}
+  ];
+  document.getElementById('planoRow').innerHTML = planos.map(p=>`
+    <div class="card">
+      <div class="num">${p.n}</div>
+      <h3>${p.t}</h3>
+      <p>${p.p}</p>
+      <span class="meta">${p.meta}</span>
+    </div>`).join('');
+}
+
+function fullRender(){ destroyCharts(); render(); }
+fullRender();
+</script>
+</body>
+</html>
